@@ -26,6 +26,9 @@ Synopsis / example:
 
   rotlog.verbose(False)
   rotlog.debug('This does not appear')
+
+  # After this, info/warn/fatal/debug messages will include a program name
+  rotlog.progname('myprog')
 """  
 
 import os
@@ -37,6 +40,7 @@ _logfname    = None
 _logversions = None
 _maxsize     = None
 _logfile     = None
+_progname    = None
 
 def _stamp():
     return time.strftime('%Y-%m-%d %H:%M:%S')
@@ -46,10 +50,13 @@ def _output(stdstream, tag, fmt, *args):
     global _logversions
     global _maxsize
     global _logfile
+    global _progname
 
     # Output to stdout/stderr
     msg = fmt % args
-    stdstream.write(msg + '\n')
+    if _progname:
+        msg = _progname + ': ' + msg
+    stdstream.write(tag + ' ' + msg + '\n')
 
     # Not logging to file? No need to output/rotate.
     if not _logfile:
@@ -74,24 +81,34 @@ def _output(stdstream, tag, fmt, *args):
 
     _logfile = open(_logfname, 'ab')
 
-def logfile(filename, maxsize=100000, versions=10):
-    """ Sets the logfile parameters. The directory part of 'filename' is created
-    if it does not yet exist. Historical logfiles (rotated-away) will get a
-    suffix -1, -2 and so on up to 'versions'. Parameter 'maxsize' is the size
-    that a log file may reach, after that it is rotated away."""
+def logfile(filename, maxsize=100000, versions=10, progname=None):
+    """ Sets the logfile parameters. The directory part of 'filename' is
+    created if it does not yet exist. Historical logfiles (rotated-away)
+    will get a suffix -1, -2 and so on up to 'versions'. Parameter 'maxsize'
+    is the size that a log file may reach, after that it is rotated away.
+    Setting 'progname' causes the label to be prepended to messages."""
     
     global _logfname
     global _maxsize
     global _logversions
     global _logfile
+    global _progname
 
     _logfname    = filename
     _maxsize     = maxsize
     _logversions = versions
+    _progname    = progname
     
     os.makedirs(os.path.dirname(_logfname), exist_ok=True)
     _logfile = open(_logfname, 'ab')
 
+def progname(p):
+    """ Defines the program name that is prepended to messages. Set to
+    None to suppress. """
+    
+    global _progname
+    _progname = p
+    
 def verbose(verbosity=True):
     """ Turns verbosity on or off. When verbosity is off, debug() does not
     log anything."""
@@ -102,11 +119,11 @@ def verbose(verbosity=True):
 def info(fmt, *args):
     """ Logs an informational message to the logfile and to stdout."""
     
-    _output(sys.stdout, 'INFO', fmt, *args)
+    _output(sys.stdout, 'INFO ', fmt, *args)
 
 def warn(fmt, *args):
     """ Logs a warning message to the logfile and to stderr."""
-    _output(sys.stderr, 'WARN', fmt, *args)
+    _output(sys.stderr, 'WARN ', fmt, *args)
 
 def fatal(fmt, *args):
     """ Logs a fatal message to the logfile and to stderr, and halts the program
