@@ -53,16 +53,19 @@ def _output(stdstream, tag, fmt, *args):
     global _progname
 
     # Output to stdout/stderr
-    msg = fmt % args
+    msg = _stamp() + ' ' + tag
     if _progname:
-        msg = _progname + ': ' + msg
-    stdstream.write(tag + ' ' + msg + '\n')
+        msg += ' ' + _progname
+    msg += ' ' + fmt % args + '\n'
+
+    # Send to the requested stdout/stderr
+    stdstream.write(msg)
 
     # Not logging to file? No need to output/rotate.
     if not _logfile:
         return
     
-    _logfile.write(bytes(_stamp() + ' ' + tag + ' ' + msg + '\n', 'utf-8'))
+    _logfile.write(bytes(msg, 'utf-8'))
 
     # Rotate logs if needed
     if not _maxsize or _maxsize < 1 or _logfile.tell() < _maxsize:
