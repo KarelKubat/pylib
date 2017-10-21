@@ -4,7 +4,7 @@ level of ACIDity. An ACIDWriteFile doesn't "exist" until it is closed:
 
   import acidfile
 
-  with f as ACIDWriteFile('myfile'):
+  with ACIDWriteFile('myfile') as f:
     f.write('something')
     # though 'myfile' doesn't exist here, it is hidden as
     # 'myfile-something-acid' during its scope
@@ -13,13 +13,17 @@ level of ACIDity. An ACIDWriteFile doesn't "exist" until it is closed:
 ACIDReadFile provides something similar. Once it grabs a file, it renames
 it to a temporary name so that other ACIDReadFile instances cannot grab it:
 
-  with f as ACIDReadFile('myfile'):
+  with ACIDReadFile('myfile') as f:
     buf = f.read()
     # other = ACIDReadFile('myfile') will now cause an exception
   # Now 'myfile' appears back since it's no longer being used:
   other = ACIDReadFile('myfile')  # succeeds
 
+ACIDDir privides globbing that excludes in-flight files:
 
+  d = ACIDDir('mydir')
+  readyfiles = d.glob()
+"""
 
 import glob
 import os
@@ -130,7 +134,7 @@ if __name__ == '__main__':
       # list because it's written as myfile1-bla-acid.
       fname = '%s/myfile1' % directory
       with ACIDWriteFile(fname) as wf:
-        wf.write('Hello World\n')
+        wf.write(bytes('Hello World\n', 'utf-8'))
         self.assertFalse(fname in glob.glob('%s/*' % directory),
                          'not expecting %s in %s/*' % (fname, directory))
       self.assertTrue(fname in glob.glob('%s/*' % directory),
@@ -140,7 +144,7 @@ if __name__ == '__main__':
       # be there.
       fname = '%s/myfile2' % directory
       with ACIDWriteFile(fname) as wf:
-        wf.write('Hello World\n')
+        wf.write(bytes('Hello World\n', 'utf-8'))
         self.assertFalse(fname in glob.glob('%s/*' % directory),
                          'not expecting %s in %s/*' % (fname, directory))
         self.assertTrue('%s/myfile1' % directory in
