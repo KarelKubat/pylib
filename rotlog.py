@@ -29,11 +29,18 @@ Synopsis / example:
 
   # After this, info/warn/fatal/debug messages will include a program name
   rotlog.progname('myprog')
+
+  # Example of exception formatting:
+  try:
+    ...
+  except:
+    rotlog.warn(rotlog.formatexception())
 """  
 
 import os
 import sys
 import time
+import traceback
 
 _verbosity   = False
 _logfname    = None
@@ -45,34 +52,27 @@ _progname    = None
 def _stamp():
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
-def _output(stdstream, tag, fmt, *args):
+def _outputline(stdstream, line):
+    # Output just one line, possibly rotate logs
     global _logfname
     global _logversions
     global _maxsize
     global _logfile
-    global _progname
 
-    # Output to stdout/stderr
-    msg = _stamp() + ' ' + tag
-    if _progname:
-        msg += ' ' + _progname
-    msg += ' ' + fmt % args + '\n'
-
-    # Send to the requested stdout/stderr
-    stdstream.write(msg)
-
+    stdstream.write(line)
+    
     # Not logging to file? No need to output/rotate.
     if not _logfile:
         return
     
-    _logfile.write(bytes(msg, 'utf-8'))
+    _logfile.write(bytes(line, 'utf-8'))
 
     # Rotate logs if needed
     if not _maxsize or _maxsize < 1 or _logfile.tell() < _maxsize:
         return
     _logfile.close()
 
-    for i in range(9, 0, -1):
+    for i in range(_logversions - 1, 0, -1):
         thislog = '%s-%d' % (_logfname, i)
         nextlog = '%s-%d' % (_logfname, i + 1)
         if os.path.exists(nextlog):
@@ -83,6 +83,30 @@ def _output(stdstream, tag, fmt, *args):
     os.rename(_logfname, nextlog)
 
     _logfile = open(_logfname, 'ab')
+
+def _output(stdstream, tag, fmt, *args):
+    global _progname
+
+    # Expand message string, split up by lines
+    if args:
+        msg = fmt % args
+    else:
+        msg = fmt
+    for l in msg.split('\n'):
+        if l == '':
+            continue
+        line = _stamp() + ' ' + tag
+        if _progname:
+            line += ' ' + _progname
+        line += l + '\n'
+        _outputline(stdstream, line)
+
+def formatexception():
+    """ Returns the current exception formatted with a stacktrace so
+    it may be logged."""
+    
+    tp, vl, tb = sys.exc_info()
+    return ''.join(traceback.format_exception(tp, vl, tb))
 
 def logfile(filename, maxsize=100000, versions=10, progname=None):
     """ Sets the logfile parameters. The directory part of 'filename' is
@@ -129,8 +153,8 @@ def warn(fmt, *args):
     _output(sys.stderr, 'WARN ', fmt, *args)
 
 def fatal(fmt, *args):
-    """ Logs a fatal message to the logfile and to stderr, and halts the program
-    with an exit status of 1."""
+    """ Logs a fatal message to the logfile and to stderr, and halts the
+    program with an exit status of 1."""
     
     _output(sys.stderr, 'FATAL', fmt, *args)
     sys.exit(1)
@@ -151,3 +175,11 @@ if __name__ == '__main__':
     logfile('/tmp/rotlog.log', maxsize=100)
     for i in range(1000):
         debug('message nr %d', i)
+
+    # exception test
+    a = 10
+    b = 0
+    try:
+        print(a / b)
+    except:
+        warn(formatexception())
