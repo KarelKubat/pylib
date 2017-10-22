@@ -98,7 +98,7 @@ def _output(stdstream, tag, fmt, *args):
         line = _stamp() + ' ' + tag
         if _progname:
             line += ' ' + _progname
-        line += l + '\n'
+        line += ' ' + l + '\n'
         _outputline(stdstream, line)
 
 def formatexception():
